@@ -114,7 +114,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ProxyServer.cpp" />
     <ClCompile Include="testwebserver.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ProxyServer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
