@@ -115,7 +115,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ProxyServer.cpp" />
-    <ClCompile Include="testwebserver.cpp" />
+    <ClCompile Include="ServerProcess.cpp" />
+    <ClCompile Include="testwebserver.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ProxyServer.h" />
