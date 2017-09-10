@@ -19,18 +19,19 @@
 class ProxyServer
 {
 public:
-	ProxyServer(int port, int max_connections, int buff_size, std::string host, std::string web_host);
+	ProxyServer(int port, int webhost_port, int max_connections, int buff_size, std::string host, std::string web_host);
 	void init();
 	void handleRequest();
 	virtual ~ProxyServer();
 private:
-	int port, max_connections, max_buffer_size;
+	int port, webhost_port, max_connections, max_buffer_size;
 	std::string host, web_host;
 	WSADATA *socketData = NULL;
 	SOCKET server_socket, client_socket, child_socket;
-	struct addrinfo *child_connection;
+	struct addrinfo *child_connection = NULL;
 	struct addrinfo *server_addr = NULL;
-	struct sockaddr_in *client_addr;
+	struct addrinfo *client_addr = NULL;
+	struct sockaddr_in *browser_addr = NULL;
 	int initializeWinSock();
 	int initializeServerSocket();
 	int initializeClientSocket();
