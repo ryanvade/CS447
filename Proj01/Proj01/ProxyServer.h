@@ -11,6 +11,9 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <atomic>
+#include <vector>
+#include <mutex>
 
 #pragma warning(disable : 4996)
 #pragma comment(lib, "Ws2_32.lib")
@@ -27,20 +30,24 @@ private:
 	int port, webhost_port, max_connections, max_buffer_size;
 	std::string host, web_host;
 	WSADATA *socketData = NULL;
-	SOCKET server_socket, client_socket, child_socket;
+	SOCKET server_socket;
+	std::atomic<int> client_count = 0, child_count = -1;
+	std::vector<SOCKET> client_sockets, child_sockets;
 	struct addrinfo *child_connection = NULL;
 	struct addrinfo *server_addr = NULL;
 	struct addrinfo *client_addr = NULL;
 	struct sockaddr_in *browser_addr = NULL;
+	std::mutex coutMutex;
+
 	int initializeWinSock();
 	int initializeServerSocket();
 	int initializeClientSocket();
 	int bindSocket();
 	int listenOnSocket();
 	int acceptOnSocket();
-	int connectToWebServer();
-	void clientServer();
-	void serverBrowser();
+	int connectToWebServer(int current);
+	int clientServer(int child_count, int client_count);
+	int serverBrowser(int child_count, int client_count);
 
 	struct addrinfo* getServerAdderInfo();
 	struct addrinfo* getClientAdderInfo();
