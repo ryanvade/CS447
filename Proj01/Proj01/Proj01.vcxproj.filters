@@ -18,15 +18,15 @@
     <ClCompile Include="testwebserver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ProxyServer.cpp">
+    <ClCompile Include="Proxy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ServerProcess.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ProxyServer.h">
+    <ClInclude Include="Proxy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
