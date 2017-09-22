@@ -19,11 +19,11 @@
 
 int main()
 {
-	char hazardous_contents_CS_01[256];
-	char hazardous_contents_CS_02[256];
+	char hazardous_contents_CS_01[256] = "";
+	char hazardous_contents_CS_02[256] = "";
 
-	char hazardous_contents_SC_01[256];
-	char hazardous_contents_SC_02[256];
+	char hazardous_contents_SC_01[256] = "";
+	char hazardous_contents_SC_02[256] = "";
 
 	// Get a new Server
 	ProxyServer *server = new ProxyServer(SERVER_PORT, WEBHOST_PORT, MAXCONNECTIONS, BUFFER_SIZE, HOST, WEBHOST);

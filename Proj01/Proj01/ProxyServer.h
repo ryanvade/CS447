@@ -29,6 +29,9 @@
 #pragma warning(disable : 4996)
 #pragma comment(lib, "Ws2_32.lib")
 
+#define NOTOK_404   "HTTP/1.0 404 Not Found\nContent-Type:text/html\n\n"
+#define MESS_404    "<html><body><h1>FILE NOT FOUND</h1></body></html>"
+
 
 class ProxyServer
 {
@@ -43,6 +46,7 @@ private:
 	WSADATA *socketData = NULL;
 	SOCKET server_socket;
 	std::atomic<int> client_count = -1, child_count = -1;
+	std::atomic<bool> hazards = false;
 	std::vector<SOCKET> client_sockets, child_sockets;
 	char *cs_hazards_01, *cs_hazards_02;
 	char *sc_hazards_01, *sc_hazards_02;
@@ -64,6 +68,10 @@ private:
 
 	struct addrinfo* getServerAdderInfo();
 	struct addrinfo* getClientAdderInfo();
+
+	bool hasClientError(char* buff);
+	bool hasServerError(char* buff);
+
 	
 };
 

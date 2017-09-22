@@ -222,26 +222,40 @@ int ProxyServer::clientServer(SOCKET child_socket, SOCKET client_socket)
 	char* buff = new char[this->max_buffer_size];
 	do
 	{
+		if (this->hazards.load()) break;
 		result = recv(child_socket, buff, this->max_buffer_size, 0);
 		this->coutMutex.lock();
 		std::cout << "received " << result << " bytes from the client" << std::endl;
 		this->coutMutex.unlock();
 		if (result > 0)
 		{
-			this->coutMutex.lock();
-			std::cout << "Sending " << result << " bytes to the web server" << std::endl;
-			this->coutMutex.unlock();
-			// send to the server
-			int send_result = send(client_socket, buff, result, 0);
-			if (send_result == SOCKET_ERROR)
+			if (!this->hazards.load() && !this->hasClientError(buff))
+			{
+				// return data
+				this->coutMutex.lock();
+				std::cout << "Sending " << result << " bytes to the web server" << std::endl;
+				this->coutMutex.unlock();
+				// send to the server
+				if (this->hazards.load()) break;
+				int send_result = send(client_socket, buff, result, 0);
+				if (send_result == SOCKET_ERROR)
+				{
+					this->coutMutex.lock();
+					std::cerr << "Sending to web server failed " << WSAGetLastError() << std::endl;
+					this->coutMutex.unlock();
+					WSACleanup();
+					return 1;
+					//exit(1);
+				}
+			}
+			else
 			{
 				this->coutMutex.lock();
-				std::cerr << "Sending to web server failed " << WSAGetLastError() << std::endl;
+				std::cout << "Dropping connection due to hazard" << std::endl;
 				this->coutMutex.unlock();
-				WSACleanup();
-				return 1;
-				//exit(1);
+				this->hazards = true;
 			}
+			// if has client error or after send break
 			break;
 		}
 		else if (result == 0)
@@ -257,7 +271,7 @@ int ProxyServer::clientServer(SOCKET child_socket, SOCKET client_socket)
 			this->coutMutex.unlock();
 			return 1;
 		}
-	} while (result > 0);
+	} while (result > 0 && !this->hazards.load());
 	delete(buff);
 	buff = NULL;
 	this->coutMutex.lock();
@@ -273,26 +287,77 @@ int ProxyServer::serverBrowser(SOCKET child_socket, SOCKET client_socket)
 	//Sleep(1000);
 	do
 	{
+		if (this->hazards.load()) break;
 		result = recv(client_socket, buff, this->max_buffer_size, 0);
 		this->coutMutex.lock();
 		std::cout << "Received " << result << " bytes from the web server" << std::endl;
 		this->coutMutex.unlock();
 		if (result > 0)
 		{
-			this->coutMutex.lock();
-			std::cout << "Sending " << result << " bytes from the web server to the client" << std::endl;
-			this->coutMutex.unlock();
-			// send to the client
-			int client_send_result = send(child_socket, buff, result, 0);
-			if (client_send_result == SOCKET_ERROR)
+			if (this->hasServerError(buff))
 			{
+				// change buffer to include 404 message
+				char* notok = new char[sizeof(NOTOK_404)];
+				strcpy(notok, NOTOK_404);
 				this->coutMutex.lock();
-				std::cerr << "Sending to client failed " << WSAGetLastError() << std::endl;
+				std::cout << "Sending " << NOTOK_404 << std::endl;
 				this->coutMutex.unlock();
-				closesocket(this->client_sockets[client_count]);
-				WSACleanup();
-				//exit(1);
-				return 1;
+				// send to the client
+				if (this->hazards.load()) break;
+				int client_send_result = send(child_socket, notok, result, 0);
+				if (client_send_result == SOCKET_ERROR)
+				{
+					this->coutMutex.lock();
+					std::cerr << "Sending to client failed " << WSAGetLastError() << std::endl;
+					this->coutMutex.unlock();
+					closesocket(this->client_sockets[client_count]);
+					WSACleanup();
+					//exit(1);
+					return 1;
+				}
+				free(notok);
+				notok = nullptr;
+				char* mess = new char[sizeof(MESS_404)];
+				strcpy(mess, MESS_404);
+				this->coutMutex.lock();
+				std::cout << "Sending " << MESS_404 << std::endl;
+				this->coutMutex.unlock();
+				// send to the client
+				if (this->hazards.load()) break;
+				client_send_result = send(child_socket,  mess, result, 0);
+				if (client_send_result == SOCKET_ERROR)
+				{
+					this->coutMutex.lock();
+					std::cerr << "Sending to client failed " << WSAGetLastError() << std::endl;
+					this->coutMutex.unlock();
+					closesocket(this->client_sockets[client_count]);
+					WSACleanup();
+					//exit(1);
+					return 1;
+				}
+				free(mess);
+				mess = nullptr;
+				this->hazards = true;
+			}
+			else {
+
+				// send
+				this->coutMutex.lock();
+				std::cout << "Sending " << result << " bytes from the web server to the client" << std::endl;
+				this->coutMutex.unlock();
+				// send to the client
+				if (this->hazards.load()) break;
+				int client_send_result = send(child_socket, buff, result, 0);
+				if (client_send_result == SOCKET_ERROR)
+				{
+					this->coutMutex.lock();
+					std::cerr << "Sending to client failed " << WSAGetLastError() << std::endl;
+					this->coutMutex.unlock();
+					closesocket(this->client_sockets[client_count]);
+					WSACleanup();
+					//exit(1);
+					return 1;
+				}
 			}
 		}
 		else if (result == 0)
@@ -307,7 +372,7 @@ int ProxyServer::serverBrowser(SOCKET child_socket, SOCKET client_socket)
 			std::cerr << "web server recv failed: " << WSAGetLastError() << std::endl;
 			this->coutMutex.unlock();
 		}
-	} while (result  > 0);
+	} while (result  > 0 && !this->hazards.load());
 	delete(buff);
 	buff = NULL;	
 	this->coutMutex.lock();
@@ -344,3 +409,51 @@ void ProxyServer::handleRequests()
 		// end
 	}
 }
+
+bool ProxyServer::hasClientError(char* buff)
+{
+	std::cout << strlen(this->cs_hazards_01) << std::endl;
+	if (strlen(this->cs_hazards_01) > 1 && strstr(buff, this->cs_hazards_01) == nullptr)
+	{
+		this->coutMutex.lock();
+		std::cout << "Client has hazard" << this->cs_hazards_01 << std::endl;
+		this->coutMutex.unlock();
+		return true;
+	}
+
+	std::cout << strlen(this->cs_hazards_02) << std::endl;
+	if (strlen(this->cs_hazards_02) > 1 &&  strstr(buff, this->cs_hazards_02) == nullptr)
+	{
+		this->coutMutex.lock();
+		std::cout << "Client has hazard" << this->cs_hazards_02  << std::endl;
+		this->coutMutex.unlock();
+		return true;
+	}
+	std::cout << "Returning false in client error" << std::endl;
+	return false;
+}
+
+bool ProxyServer::hasServerError(char* buff)
+{
+	std::cout << strlen(this->sc_hazards_01) << std::endl;
+	if (strlen(this->sc_hazards_01) > 1 &&  strstr(buff, this->sc_hazards_01) == nullptr)
+	{
+		this->coutMutex.lock();
+		std::cout << "Server has hazard" << this->sc_hazards_01 << std::endl;
+		this->coutMutex.unlock();
+		return true;
+	}
+
+	std::cout << strlen(this->sc_hazards_02) << std::endl;
+	if (strlen(this->sc_hazards_02) > 1 &&  strstr(buff, this->sc_hazards_02) == nullptr)
+	{
+		this->coutMutex.lock();
+		std::cout << "Server has hazard" << this->sc_hazards_02  << std::endl;
+		this->coutMutex.unlock();
+		return true;
+	}
+	std::cout << "Returning false in server error" << std::endl;
+	return false;
+}
+
+
