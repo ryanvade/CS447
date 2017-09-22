@@ -1,3 +1,14 @@
+/*
+* ProxyServer.cpp
+*
+* By Ryan Owens
+*
+* CS447
+*
+* Created September 8, 2017
+*
+*/
+
 #include "ProxyServer.h"
 
 
@@ -91,18 +102,8 @@ int ProxyServer::initializeClientSocket()
 		WSACleanup();
 		return 1;
 	}
-	/*LINGER ling;
-	ling.l_linger = 0;
-	ling.l_onoff = 1;
-	if (setsockopt(this->client_socket, SOL_SOCKET, SO_LINGER, (LPTSTR)&ling, sizeof(ling)) < 0)
-	{
-		std::cerr << "Unable to add LINGER to socket" << std::endl;
-		closesocket(this->client_socket);
-		return 1;
-	}*/
-	// Save the Socket
-	++this->client_count;
 	this->client_sockets.push_back(soc);
+	this->client_count = this->client_sockets.size() - 1;
 	return 0;
 }
 
@@ -153,7 +154,7 @@ int ProxyServer::acceptOnSocket()
 		<< " arrived (Port No = " << htons(this->browser_addr->sin_port) << ")\n";
 	this->coutMutex.unlock();
 	this->child_sockets.push_back(soc);
-	++this->child_count;
+	this->child_count = this->child_sockets.size() - 1;
 	return 0;
 }
 
@@ -199,7 +200,7 @@ addrinfo * ProxyServer::getClientAdderInfo()
 	return socket_addr;
 }
 
-void ProxyServer::init()
+void ProxyServer::init(char* hazard_cs_01, char* hazard_cs_02, char* hazard_sc_01, char* hazard_sc_02)
 {
 	if (this->initializeWinSock() != 0) exit(1);
 	std::cout << "WinSock Initialized" << std::endl;
@@ -209,21 +210,19 @@ void ProxyServer::init()
 	std::cout << "Server Socket Binded to " << this->host << ":" << this->port << std::endl;
 	if (this->listenOnSocket() != 0) exit(1);
 	std::cout << "Server Listening for connections" << std::endl << std::endl;
+	this->cs_hazards_01 = hazard_cs_01;
+	this->cs_hazards_02 = hazard_cs_02;
+	this->sc_hazards_01 = hazard_sc_01;
+	this->sc_hazards_02 = hazard_sc_02;
 }
 
-int ProxyServer::clientServer(int child_count, int client_count)
+int ProxyServer::clientServer(SOCKET child_socket, SOCKET client_socket)
 {
 	int result;
-	while (this->child_sockets.size() <= child_count)
-	{
-		this->coutMutex.lock();
-		std::cerr << "Child Socket does not exist" << std::endl;
-		this->coutMutex.unlock();
-	}
 	char* buff = new char[this->max_buffer_size];
 	do
 	{
-		result = recv(this->child_sockets[child_count], buff, this->max_buffer_size, 0);
+		result = recv(child_socket, buff, this->max_buffer_size, 0);
 		this->coutMutex.lock();
 		std::cout << "received " << result << " bytes from the client" << std::endl;
 		this->coutMutex.unlock();
@@ -233,7 +232,7 @@ int ProxyServer::clientServer(int child_count, int client_count)
 			std::cout << "Sending " << result << " bytes to the web server" << std::endl;
 			this->coutMutex.unlock();
 			// send to the server
-			int send_result = send(this->client_sockets[client_count], buff, result, 0);
+			int send_result = send(client_socket, buff, result, 0);
 			if (send_result == SOCKET_ERROR)
 			{
 				this->coutMutex.lock();
@@ -258,7 +257,7 @@ int ProxyServer::clientServer(int child_count, int client_count)
 			this->coutMutex.unlock();
 			return 1;
 		}
-	} while (result > 0 && this->client_sockets.size() > 0 && this->child_sockets.size() > 0);
+	} while (result > 0);
 	delete(buff);
 	buff = NULL;
 	this->coutMutex.lock();
@@ -267,20 +266,14 @@ int ProxyServer::clientServer(int child_count, int client_count)
 	return 0;
 }
 
-int ProxyServer::serverBrowser(int child_count, int client_count)
+int ProxyServer::serverBrowser(SOCKET child_socket, SOCKET client_socket)
 {
 	int result;
-	while (this->client_sockets.size() <= client_count)
-	{
-		this->coutMutex.lock();
-		std::cerr << "Client Socket does not exist" << std::endl;
-		this->coutMutex.unlock();
-	}
 	char* buff = new char[this->max_buffer_size];
 	//Sleep(1000);
 	do
 	{
-		result = recv(this->client_sockets[client_count], buff, this->max_buffer_size, 0);
+		result = recv(client_socket, buff, this->max_buffer_size, 0);
 		this->coutMutex.lock();
 		std::cout << "Received " << result << " bytes from the web server" << std::endl;
 		this->coutMutex.unlock();
@@ -290,7 +283,7 @@ int ProxyServer::serverBrowser(int child_count, int client_count)
 			std::cout << "Sending " << result << " bytes from the web server to the client" << std::endl;
 			this->coutMutex.unlock();
 			// send to the client
-			int client_send_result = send(this->child_sockets[child_count], buff, result, 0);
+			int client_send_result = send(child_socket, buff, result, 0);
 			if (client_send_result == SOCKET_ERROR)
 			{
 				this->coutMutex.lock();
@@ -314,23 +307,19 @@ int ProxyServer::serverBrowser(int child_count, int client_count)
 			std::cerr << "web server recv failed: " << WSAGetLastError() << std::endl;
 			this->coutMutex.unlock();
 		}
-	} while (result  > 0 && this->client_sockets.size() > 0 && this->child_sockets.size() > 0);
+	} while (result  > 0);
 	delete(buff);
 	buff = NULL;	
 	this->coutMutex.lock();
 	std::cout << "server browser thread finished" << std::endl;
 	this->coutMutex.unlock();
 
-	--this->client_count;
-	--this->child_count;
-	closesocket(this->client_sockets[client_count]);
-	closesocket(this->child_sockets[child_count]);
-	this->client_sockets.erase(this->client_sockets.begin() + client_count);
-	this->child_sockets.erase(this->child_sockets.begin() + child_count);
+	closesocket(client_socket);
+	closesocket(child_socket);
 	return 0;
 }
 
-void ProxyServer::handleRequest()
+void ProxyServer::handleRequests()
 {
 	while (true)
 	{
@@ -339,24 +328,19 @@ void ProxyServer::handleRequest()
 		this->coutMutex.lock();
 		std::cout << "Received a new request" << std::endl << std::endl;
 		this->coutMutex.unlock();
-		int client_count = this->client_count.load();
-		int child_count = this->child_count.load();
-		//current = current - 1;
-		this->coutMutex.lock();
-		std::cout << "Current is " << child_count << std::endl;
-		this->coutMutex.unlock();
 		// Create client  (to web server) socket
 		if (this->initializeClientSocket() != 0) exit(1);
 		// connect client to webhost
 		if (this->connectToWebServer(child_count) != 0) exit(1);
+		// Get the newly created sockets
+		SOCKET client_socket = this->client_sockets.back();
+		SOCKET child_socket = this->child_sockets.back();
 		// Spawn thread for client->server communication
-		std::thread clientServerThread(&ProxyServer::clientServer, this, child_count, client_count);
+		std::thread clientServerThread(&ProxyServer::clientServer, this, child_socket, client_socket);
 		clientServerThread.detach();
 		// Spawn thread for server->browser communication
-		std::thread serverBrowserThread(&ProxyServer::serverBrowser, this, child_count, client_count);
+		std::thread serverBrowserThread(&ProxyServer::serverBrowser, this, child_socket, client_socket);
 		serverBrowserThread.detach();
-		//clientServerThread.join();
-		//serverBrowserThread.join();
 		// end
 	}
 }

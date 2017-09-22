@@ -1,3 +1,14 @@
+/*
+* ProxyServer.h
+*
+* By Ryan Owens
+*
+* CS447
+*
+* Created September 8, 2017
+*
+*/
+
 #pragma once
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -23,16 +34,18 @@ class ProxyServer
 {
 public:
 	ProxyServer(int port, int webhost_port, int max_connections, int buff_size, std::string host, std::string web_host);
-	void init();
-	void handleRequest();
+	void init(char* hazard_cs_01, char* hazard_cs_02, char* hazard_sc_01, char* hazard_sc_02);
+	void handleRequests();
 	virtual ~ProxyServer();
 private:
 	int port, webhost_port, max_connections, max_buffer_size;
 	std::string host, web_host;
 	WSADATA *socketData = NULL;
 	SOCKET server_socket;
-	std::atomic<int> client_count = 0, child_count = -1;
+	std::atomic<int> client_count = -1, child_count = -1;
 	std::vector<SOCKET> client_sockets, child_sockets;
+	char *cs_hazards_01, *cs_hazards_02;
+	char *sc_hazards_01, *sc_hazards_02;
 	struct addrinfo *child_connection = NULL;
 	struct addrinfo *server_addr = NULL;
 	struct addrinfo *client_addr = NULL;
@@ -46,8 +59,8 @@ private:
 	int listenOnSocket();
 	int acceptOnSocket();
 	int connectToWebServer(int current);
-	int clientServer(int child_count, int client_count);
-	int serverBrowser(int child_count, int client_count);
+	int clientServer(SOCKET child_socket, SOCKET client_socket);
+	int serverBrowser(SOCKET child_socket, SOCKET client_socket);
 
 	struct addrinfo* getServerAdderInfo();
 	struct addrinfo* getClientAdderInfo();
