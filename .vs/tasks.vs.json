@@ -1,0 +1,10 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "taskName": "task-ServerProcess",
+      "appliesTo": "Proj01/Proj01/ServerProcess.cpp",
+      "type": "launch"
+    }
+  ]
+}

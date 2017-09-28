@@ -1,0 +1,5 @@
+﻿  ProxyServer.cpp
+c:\users\ryanv\source\repos\cs447\proj01\proj01\proxyserver.cpp(217): warning C4018: '<=': signed/unsigned mismatch
+c:\users\ryanv\source\repos\cs447\proj01\proj01\proxyserver.cpp(273): warning C4018: '<=': signed/unsigned mismatch
+  Proj01.vcxproj -> C:\Users\ryanv\Source\Repos\CS447\Proj01\Debug\Proj01.exe
+  Proj01.vcxproj -> C:\Users\ryanv\Source\Repos\CS447\Proj01\Debug\Proj01.pdb (Partial PDB)
