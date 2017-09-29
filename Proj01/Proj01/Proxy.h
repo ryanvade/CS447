@@ -25,6 +25,7 @@
 #include <atomic>
 #include <vector>
 #include <mutex>
+#include <string.h>
 
 #pragma warning(disable : 4996)
 #pragma comment(lib, "Ws2_32.lib")
@@ -54,7 +55,7 @@ private:
 	struct addrinfo *server_addr = NULL;
 	struct addrinfo *client_addr = NULL;
 	struct sockaddr_in *browser_addr = NULL;
-	std::mutex coutMutex;
+	std::mutex coutMutex, browserRecvMutex;
 
 	int initializeWinSock();
 	int initializeServerSocket();
@@ -69,9 +70,6 @@ private:
 	struct addrinfo* getServerAdderInfo();
 	struct addrinfo* getClientAdderInfo();
 
-	bool hasClientError(char* buff);
-	bool hasServerError(char* buff);
-
-	
+	bool hasHazard(char* buff);
 };
 

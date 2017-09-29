@@ -15,12 +15,12 @@
 #define MAXCONNECTIONS 3
 #define BUFFER_SIZE 1024
 #define HOST "localhost"
-#define WEBHOST "146.163.150.56"
+#define WEBHOST "localhost"
 
 int main()
 {
-	char hazardous_contents_CS_01[256] = "";
-	char hazardous_contents_CS_02[256] = "";
+	char hazardous_contents_CS_01[256] = "VIRUS";
+	char hazardous_contents_CS_02[256] = "admin";
 
 	char hazardous_contents_SC_01[256] = "";
 	char hazardous_contents_SC_02[256] = "";

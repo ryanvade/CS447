@@ -1,3 +1,8 @@
-﻿  main.cpp
+﻿  Proxy.cpp
+c:\users\ryanv\source\repos\cs447\proj01\proj01\proxy.cpp(106): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\ryanv\source\repos\cs447\proj01\proj01\proxy.cpp(157): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\ryanv\source\repos\cs447\proj01\proj01\proxy.cpp(163): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\ryanv\source\repos\cs447\proj01\proj01\proxy.cpp(238): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+c:\users\ryanv\source\repos\cs447\proj01\proj01\proxy.cpp(253): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
   Proj01.vcxproj -> C:\Users\ryanv\Source\Repos\CS447\Proj01\x64\Debug\Proj01.exe
   Proj01.vcxproj -> C:\Users\ryanv\Source\Repos\CS447\Proj01\x64\Debug\Proj01.pdb (Partial PDB)
