@@ -65,6 +65,11 @@
 *                                                                          *
 * Last Updated: 9:34 AM, August 2017                                       *
 * ************************************************************************ */
+
+/*
+ * Ryan Owens
+ * 800502524
+*/
 #include <stdio.h>     // for "printf"
 #include <math.h>      // for "ceil"
 #include <stdlib.h>    // for "calloc"
@@ -98,12 +103,11 @@ void prompt_three_parameters(void);
 unsigned int calculate_window_size(void);
 
 // YOUR CUSTOM-MADE FUNCTION PROTOTYPES //////////////////////////////////////
-
-
-
-
-
-
+#define DEBUG false
+typedef long long unsigned int lint;
+typedef unsigned int uint;
+bool check_for_received_ack(lint simulation_time, int index, int sdr_window_size, int window_size,  lint* ack_times);
+lint calculate_next_ACK_arrival_time(lint simulation_time, int index, lint* ack_times);
 
 
 
@@ -130,7 +134,7 @@ void main(void)
 	num_packets_tx = 32;   // 32 packets to simulat
 	TX_BW = 100000000;     // 100M bps
 	distance = 100;        // 100  miles
-	window_size = 15;   // window size = 15
+	window_size = 5;   // window size = 15
 
 						// instantiate the timestamp vectors --------------------------------
 	transmission_at_sender = (long long unsigned int *)calloc(num_packets_tx, sizeof(long long unsigned int));
@@ -157,17 +161,83 @@ void main(void)
 	num_completed_pkt = 1;            // reset the number of the packets completed
 
 									  // BELOW IS YOUR WORK PLACE ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	bool done = false;
+	//sdr_window_size = 1; // Start with Window size of 1 for GBN
+	sig_prop_delay = ((long long unsigned int)distance) * ((long long unsigned int)PROP_SPEED);
+	pkt_transmission_delay = (1000000000 / ((long long unsigned int)TX_BW))*((long long unsigned int)PACKET_SIZE);
 
+	int transmission_at_sender_index = 0;
+	int ACK_at_sender_index = 0;
+	int receive_at_receiver_index = 0;
 
+	lint tx_time = -1;
+	lint receive_time = -1;
+	lint ack_time = -1;
+	do
+	{
+		// check for ack
+			// if ACK, increase window size
+		if (check_for_received_ack(simulation_time, num_completed_pkt, sdr_window_size, window_size, ACK_at_sender))
+		{
+	      sdr_window_size++;
+		}
+		
+		if (DEBUG) {
+			printf("Window Size: %d\n", sdr_window_size);
+		}
 
+		// is Window size at sender > 0
+	    // forward simulation time to next ACK time
+		if (sdr_window_size <= 0)
+		{
+			if (DEBUG) {
+				printf("Skipping time to the next ACK message\n");
+			}
+			simulation_time = calculate_next_ACK_arrival_time(simulation_time, num_completed_pkt - window_size, ACK_at_sender);
+			if (DEBUG) {
+				printf("\t\tNew Simulation time: %d\n", simulation_time);
+			}
+			sdr_window_size = window_size;
+		}
 
+		// Calculate transmission completion time
+			// = current time  +  transmission delay + propogation delay
+		tx_time = simulation_time + pkt_transmission_delay;
+		if (DEBUG) {
+			printf("TX Time: %d\n", tx_time);
+		}
 
+		transmission_at_sender[num_completed_pkt] = tx_time;
+		// Calculate packet receive time
+		receive_time = tx_time + sig_prop_delay;
 
+		if (DEBUG) {
+			printf("Receive Time: %d\n", receive_time);
+		}
 
+		receive_at_receiver[num_completed_pkt] = receive_time;
+		// Calculate ACK receive time
+		ack_time = receive_time + sig_prop_delay;
 
+		if (DEBUG) {
+			printf("Ack Time: %d\n", ack_time);
+		}
 
+		ACK_at_sender[num_completed_pkt] = ack_time;
+		// Increase the number of packets completed by one
+		simulation_time = transmission_at_sender[num_completed_pkt];
+		sdr_window_size--;
+		num_completed_pkt++;
 
+		// If all packates have been sent
+		if (num_completed_pkt > num_packets_tx)
+		{
+			done = true;
+		}
+		
 
+	} while (!done);
+	simulation_completion_time = simulation_time;
 
 									  // ABOVE IS YOUR WORK PLACE ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -223,3 +293,31 @@ unsigned int calculate_window_size(void)
 
 
 // YOUR CUSTOM-MADE FUNCTIONS +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+bool check_for_received_ack(lint simulation_time, int index, int sdr_window_size, int window_size, lint* ack_times)
+{
+	if (simulation_time == 0 || index == 0 || window_size == 0)
+		return false;
+	if (sdr_window_size > 0 || num_packets_tx == 0)
+	{
+		return false;
+	}
+
+	if (index - window_size < 0 || ack_times[index-window_size] == 0)
+	{
+		return false;
+	}
+	if(DEBUG)
+	printf("Simulation Time: %llu, Ack Time: %llu\n", simulation_time, ack_times[index - window_size]);
+	if (simulation_time >= ack_times[index - window_size])
+		return true;
+	return false;
+}
+
+lint calculate_next_ACK_arrival_time(lint simulation_time, int index, lint* ack_times)
+{
+	if(DEBUG)
+	printf("\t\tSimulation time: %llu\n\t\tAck Times[index]: %llu\n", simulation_time, ack_times[index]);
+	if (simulation_time >= ack_times[index])
+		return simulation_time;
+	return ack_times[index];
+}
